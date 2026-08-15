@@ -1,78 +1,27 @@
-databases:
-  # PostgreSQL Database (free tier)
-  - name: jdcb-db
-    databaseName: jdcb_website
-    user: jdcb_user
-    plan: free
-    region: oregon
-
 services:
-  # Django Backend Web Service (serves both API and frontend)
   - type: web
-    name: jdcb-backend
-    runtime: python
+    name: jdcb-weld-fab-web
+    runtime: node
     region: oregon
     plan: free
     branch: main
-    rootDir: django_backend
-    buildCommand: cd django_backend && bash build.sh
-    startCommand: daphne -b 0.0.0.0 -p $PORT artx_platform.asgi:application
+    rootDir: web
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DEBUG
-        value: false
-      - key: ALLOWED_HOSTS
-        value: .onrender.com
-      - key: DATABASE_URL
-        fromDatabase:
-          name: artx-db
-          property: connectionString
-      - key: DB_NAME
-        fromDatabase:
-          name: artx-db
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: artx-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: artx-db
-          property: password
-      - key: DB_HOST
-        fromDatabase:
-          name: artx-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: artx-db
-          property: port
-      - key: EMAIL_MODE
-        value: smtp
-      - key: EMAIL_HOST
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_FIREBASE_API_KEY
         sync: false
-      - key: EMAIL_PORT
-        value: 587
-      - key: EMAIL_USE_TLS
-        value: true
-      - key: EMAIL_HOST_USER
+      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
         sync: false
-      - key: EMAIL_HOST_PASSWORD
+      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
         sync: false
-      - key: DEFAULT_FROM_EMAIL
+      - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
         sync: false
-      - key: PAYSTACK_SECRET_KEY
+      - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
         sync: false
-      - key: PAYSTACK_PUBLIC_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: DJANGO_SUPERUSER_EMAIL
-        sync: false
-      - key: DJANGO_SUPERUSER_USERNAME
-        sync: false
-      - key: DJANGO_SUPERUSER_PASSWORD
+      - key: NEXT_PUBLIC_FIREBASE_APP_ID
         sync: false
