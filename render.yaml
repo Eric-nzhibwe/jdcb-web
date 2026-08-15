@@ -1,0 +1,78 @@
+databases:
+  # PostgreSQL Database (free tier)
+  - name: jdcb-db
+    databaseName: jdcb_website
+    user: jdcb_user
+    plan: free
+    region: oregon
+
+services:
+  # Django Backend Web Service (serves both API and frontend)
+  - type: web
+    name: jdcb-backend
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: django_backend
+    buildCommand: cd django_backend && bash build.sh
+    startCommand: daphne -b 0.0.0.0 -p $PORT artx_platform.asgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: artx-db
+          property: connectionString
+      - key: DB_NAME
+        fromDatabase:
+          name: artx-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: artx-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: artx-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: artx-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: artx-db
+          property: port
+      - key: EMAIL_MODE
+        value: smtp
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USE_TLS
+        value: true
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
