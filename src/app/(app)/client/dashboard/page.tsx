@@ -11,7 +11,7 @@ import { formatCurrency, getInitials } from '@/lib/utils';
 import type { Project } from '@/types';
 
 function StatCard({ icon: Icon, label, value, color }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ElementType;
   label: string; value: string | number; color: string;
 }) {
   return (
