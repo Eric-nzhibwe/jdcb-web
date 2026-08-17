@@ -56,7 +56,7 @@ export default function LoginPage() {
           </p>
         </div>
         <div className="flex gap-4 relative">
-          {['Projects', 'Tasks', 'Reports', 'Expenses'].map((f) => (
+          {['Create Projects', 'View Tasks', 'Manage Reports', 'Track Expenses'].map((f) => (
             <div key={f} className="bg-white/8 rounded-xl px-4 py-2.5">
               <p className="text-white text-xs font-semibold">{f}</p>
             </div>
