@@ -1,12 +1,13 @@
 import { cn } from '@/lib/utils';
+import type { HTMLAttributes } from 'react';
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
 }
 
-export function Card({ children, className, onClick }: CardProps) {
+export function Card({ children, className, onClick, ...rest }: CardProps) {
   return (
     <div
       onClick={onClick}
@@ -15,6 +16,7 @@ export function Card({ children, className, onClick }: CardProps) {
         onClick && 'cursor-pointer hover:shadow-card-hover transition-shadow',
         className
       )}
+      {...rest}
     >
       {children}
     </div>

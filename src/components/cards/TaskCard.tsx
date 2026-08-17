@@ -18,7 +18,7 @@ export function TaskCard({ task, onPress }: TaskCardProps) {
     <Card
       onClick={onPress}
       className="border-l-4 hover:translate-y-[-2px] transition-transform"
-      style={{ borderLeftColor: statusColor } as React.CSSProperties}
+      style={{ borderLeftColor: statusColor }}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <h4 className="font-semibold text-gray-900 dark:text-white text-sm flex-1">{task.title}</h4>
