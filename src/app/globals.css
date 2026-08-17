@@ -5,23 +5,113 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @layer base {
+  /* ── Default (Light) theme ── */
   :root {
-    --primary: #2d9e5f;
-    --secondary: #1b3a2d;
-    --accent: #f0a500;
+    --primary:         #2d9e5f;
+    --primary-dark:    #1e7a47;
+    --primary-light:   #e8f7ee;
+    --secondary:       #1b3a2d;
+    --accent:          #f0a500;
+    --bg:              #f2faf5;
+    --surface:         #1b3a2d;
+    --card:            #ffffff;
+    --text:            #1a2e22;
+    --text-secondary:  #5a7a66;
+    --border:          #c8e6d0;
+    --input-bg:        #edf7f0;
+  }
+
+  /* ── Dark ── */
+  :root[data-theme="dark"] {
+    --primary:         #3dbf72;
+    --primary-dark:    #1e7a47;
+    --primary-light:   #163320;
+    --secondary:       #122b1c;
+    --accent:          #f0a500;
+    --bg:              #0d1f14;
+    --surface:         #122b1c;
+    --card:            #1a3324;
+    --text:            #e8f5ec;
+    --text-secondary:  #7aab8a;
+    --border:          #1e4a2c;
+    --input-bg:        #122b1c;
+  }
+
+  /* ── Dark Blue ── */
+  :root[data-theme="darkBlue"] {
+    --primary:         #4d8ef0;
+    --primary-dark:    #2563cc;
+    --primary-light:   #0f1f4a;
+    --secondary:       #0d1635;
+    --accent:          #f0a500;
+    --bg:              #0a0f1e;
+    --surface:         #0d1635;
+    --card:            #111d3e;
+    --text:            #dce8ff;
+    --text-secondary:  #7a9acc;
+    --border:          #1a2f5a;
+    --input-bg:        #0d1635;
+  }
+
+  /* ── Orange ── */
+  :root[data-theme="orange"] {
+    --primary:         #e86f00;
+    --primary-dark:    #b35500;
+    --primary-light:   #fde8cc;
+    --secondary:       #7a3000;
+    --accent:          #f0c030;
+    --bg:              #fff8f0;
+    --surface:         #7a3000;
+    --card:            #ffffff;
+    --text:            #2d1200;
+    --text-secondary:  #8a4a20;
+    --border:          #f5d0a9;
+    --input-bg:        #fff0e0;
+  }
+
+  /* ── Beige ── */
+  :root[data-theme="beige"] {
+    --primary:         #9b7e52;
+    --primary-dark:    #6e5438;
+    --primary-light:   #ede5d4;
+    --secondary:       #4a3728;
+    --accent:          #c8956c;
+    --bg:              #f5f0e8;
+    --surface:         #4a3728;
+    --card:            #fffdf7;
+    --text:            #2c1f12;
+    --text-secondary:  #7a6550;
+    --border:          #ddd0b8;
+    --input-bg:        #eee8d8;
+  }
+
+  /* ── Brown ── */
+  :root[data-theme="brown"] {
+    --primary:         #c8803a;
+    --primary-dark:    #9a5e22;
+    --primary-light:   #2d1a0a;
+    --secondary:       #2d1a0a;
+    --accent:          #e8b060;
+    --bg:              #1a0f08;
+    --surface:         #2d1a0a;
+    --card:            #3a2210;
+    --text:            #f5e6d0;
+    --text-secondary:  #b8956a;
+    --border:          #4a2e14;
+    --input-bg:        #2d1a0a;
   }
 
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    background-color: var(--bg);
+    color: var(--text);
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
-  }
-
-  .dark body {
-    @apply bg-gray-950 text-gray-100;
+    background-color: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
   }
 }
 

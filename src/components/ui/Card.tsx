@@ -7,15 +7,21 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   onClick?: () => void;
 }
 
-export function Card({ children, className, onClick, ...rest }: CardProps) {
+export function Card({ children, className, onClick, style, ...rest }: CardProps) {
   return (
     <div
       onClick={onClick}
       className={cn(
-        'bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-card p-5',
+        'rounded-2xl border shadow-card p-5',
         onClick && 'cursor-pointer hover:shadow-card-hover transition-shadow',
         className
       )}
+      style={{
+        backgroundColor: 'var(--card)',
+        borderColor: 'var(--border)',
+        color: 'var(--text)',
+        ...style,
+      }}
       {...rest}
     >
       {children}

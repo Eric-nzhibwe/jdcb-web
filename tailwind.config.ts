@@ -2,29 +2,25 @@ import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
-  darkMode: 'class',
+  darkMode: ['selector', '[data-theme="dark"],[data-theme="darkBlue"],[data-theme="brown"]'],
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#2d9e5f',
-          dark: '#1e7a47',
-          light: '#e8f7ee',
+          DEFAULT: 'var(--primary)',
+          dark:    'var(--primary-dark)',
+          light:   'var(--primary-light)',
         },
-        secondary: '#1b3a2d',
-        accent: '#f0a500',
-        forest: {
-          50:  '#f2faf5',
-          100: '#e8f7ee',
-          200: '#c8e6d0',
-          300: '#8fb89a',
-          400: '#5a7a66',
-          500: '#2d9e5f',
-          600: '#1e7a47',
-          700: '#1b3a2d',
-          800: '#122b1c',
-          900: '#0d1f14',
-        },
+        secondary:  'var(--secondary)',
+        accent:     'var(--accent)',
+        // Theme-aware surface colors
+        'theme-bg':      'var(--bg)',
+        'theme-card':    'var(--card)',
+        'theme-surface': 'var(--surface)',
+        'theme-border':  'var(--border)',
+        'theme-text':    'var(--text)',
+        'theme-text-secondary': 'var(--text-secondary)',
+        'theme-input':   'var(--input-bg)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -35,9 +31,9 @@ const config: Config = {
         '4xl': '2rem',
       },
       boxShadow: {
-        card: '0 2px 12px 0 rgba(0,0,0,0.08)',
+        card:       '0 2px 12px 0 rgba(0,0,0,0.08)',
         'card-hover': '0 8px 32px 0 rgba(0,0,0,0.14)',
-        hero: '0 12px 48px 0 rgba(0,0,0,0.22)',
+        hero:       '0 12px 48px 0 rgba(0,0,0,0.22)',
       },
     },
   },

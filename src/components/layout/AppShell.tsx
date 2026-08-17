@@ -3,13 +3,12 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
-import { cn } from '@/lib/utils';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-shrink-0">
         <Sidebar />
@@ -28,7 +27,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-secondary text-white">
+        <header
+          className="lg:hidden flex items-center gap-4 px-4 py-3 text-white"
+          style={{ backgroundColor: 'var(--secondary)' }}
+        >
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-lg hover:bg-white/10"
@@ -39,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-black tracking-widest">JDCB</span>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-auto" style={{ color: 'var(--text)' }}>
           {children}
         </main>
       </div>
