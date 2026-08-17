@@ -34,54 +34,59 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 lg:flex-row">
 
-      {/* ── Left panel — hero image ── */}
-      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
+      {/* ── Hero image — top on mobile, left half on desktop ── */}
+      <div className="relative w-full h-[44vh] lg:h-screen lg:w-1/2 flex-shrink-0 overflow-hidden">
         <Image
           src="/background.jpeg"
-          alt="JDCB Weld & Fabrication"
+          alt="JDCB Weld & Fabrication workshop"
           fill
-          className="object-cover"
+          className="object-cover object-center"
           priority
         />
-        {/* dark scrim at bottom */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
-        {/* brand overlay */}
-        <div className="absolute bottom-10 left-10 right-10">
-          <p className="text-5xl font-black text-white tracking-widest drop-shadow">JDCB</p>
-          <p className="text-base font-semibold text-white/80 mt-1 tracking-wide">Weld &amp; Fabrication</p>
-          <p className="text-white/55 text-sm mt-4 max-w-xs leading-relaxed">
-            Manage projects, track progress and deliver results — all in one place.
-          </p>
+        {/* bottom scrim — same as mobile */}
+        <div className="absolute bottom-0 left-0 right-0 h-[35%] bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* theme toggle — top right, same position as mobile */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          className="absolute top-12 right-4 z-10 bg-black/30 rounded-full px-3 py-1.5 text-base leading-none"
+        >
+          {isDark ? '☀️' : '🌙'}
+        </button>
+
+        {/* brand — bottom left, same as mobile */}
+        <div className="absolute bottom-6 left-6">
+          <p className="text-5xl font-black text-white tracking-widest drop-shadow-lg">JDCB</p>
+          <p className="text-sm font-semibold text-white/85 mt-0.5 tracking-wide">Weld &amp; Fabrication</p>
         </div>
       </div>
 
-      {/* ── Right panel — form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12">
+      {/* ── Form — slides up over image on mobile, right panel on desktop ── */}
+      <div className="
+        relative z-10 flex flex-col justify-center
+        -mt-6 rounded-t-3xl
+        bg-gray-50 dark:bg-gray-950
+        px-5 pt-8 pb-10
+        lg:mt-0 lg:rounded-none lg:flex-1 lg:items-center lg:px-12
+      ">
         <div className="w-full max-w-md">
 
-          {/* Mobile brand (shown only below lg) */}
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center">
-              <span className="text-white font-black text-sm">JD</span>
-            </div>
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="font-black tracking-widest text-gray-900 dark:text-white">JDCB</p>
-              <p className="text-xs text-gray-400">Weld &amp; Fabrication</p>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white">Welcome Back</h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+                Sign in to manage your projects
+              </p>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 dark:text-white">Welcome back</h2>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">Sign in to your account</p>
-            </div>
+            {/* theme toggle only shown on desktop (mobile has it on image) */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               aria-label="Toggle theme"
+              className="hidden lg:flex p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               {isDark ? '☀️' : '🌙'}
             </button>
@@ -132,6 +137,7 @@ export default function LoginPage() {
               Register
             </Link>
           </p>
+
         </div>
       </div>
     </div>
