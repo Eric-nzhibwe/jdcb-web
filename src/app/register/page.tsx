@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Wrench } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import type { UserRole } from '@/types';
 
 export default function RegisterPage() {
   const { register, loading, error, clearError } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const router = useRouter();
 
   const [displayName,  setDisplayName]  = useState('');
@@ -41,26 +44,74 @@ export default function RegisterPage() {
     : 'As a Contractor you execute assigned projects and submit progress reports.';
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 p-6">
-      <div className="w-full max-w-md">
-        {/* Brand */}
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-            <Wrench className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <p className="text-lg font-black tracking-widest text-gray-900 dark:text-white">JDCB</p>
-            <p className="text-xs text-gray-400">Weld &amp; Fabrication</p>
-          </div>
-        </div>
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 lg:flex-row">
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-card p-8">
-          <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1">Create account</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Join JDCB Weld &amp; Fabrication</p>
+      {/* ── Hero image ── */}
+      <div className="relative w-full h-[30vh] lg:h-screen lg:w-1/2 flex-shrink-0 overflow-hidden">
+        <Image
+          src="/background.jpeg"
+          alt="JDCB Weld & Fabrication workshop"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+        <div className="absolute bottom-0 left-0 right-0 h-[35%] bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* theme toggle on image */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          className="absolute top-12 right-4 z-10 bg-black/30 rounded-full px-3 py-1.5 text-base leading-none"
+        >
+          {isDark ? '☀️' : '🌙'}
+        </button>
+
+        {/* brand */}
+        <div className="absolute bottom-6 left-6">
+          <p className="text-5xl font-black text-white tracking-widest drop-shadow-lg">JDCB</p>
+          <p className="text-sm font-semibold text-white/85 mt-0.5 tracking-wide">Weld &amp; Fabrication</p>
+        </div>
+      </div>
+
+      {/* ── Form — slides up over image on mobile ── */}
+      <div className="
+        relative z-10 flex flex-col justify-center
+        -mt-6 rounded-t-3xl
+        bg-gray-50 dark:bg-gray-950
+        px-5 pt-8 pb-10
+        lg:mt-0 lg:rounded-none lg:flex-1 lg:items-center lg:overflow-y-auto lg:px-12
+      ">
+        <div className="w-full max-w-md">
+
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white">Create account</h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Join JDCB Weld &amp; Fabrication</p>
+            </div>
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="hidden lg:flex p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Full Name *" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="John Banda" />
-            <Input label="Email *" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" />
+            <Input
+              label="Full Name *"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="John Banda"
+            />
+            <Input
+              label="Email *"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              autoComplete="email"
+            />
             <div className="relative">
               <Input
                 label="Password *"
@@ -74,13 +125,24 @@ export default function RegisterPage() {
                 type="button"
                 className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <Input label="Phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+260" />
-            <Input label="Company" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Your company name" />
-
+            <Input
+              label="Phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+260"
+            />
+            <Input
+              label="Company"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="Your company name"
+            />
             <Select
               label="Role *"
               value={role}
@@ -110,6 +172,7 @@ export default function RegisterPage() {
             Already have an account?{' '}
             <Link href="/login" className="text-primary font-bold hover:underline">Sign In</Link>
           </p>
+
         </div>
       </div>
     </div>
