@@ -5,10 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ThemePicker } from '@/components/ui/ThemePicker';
 
 export default function ContractorSettingsPage() {
   const { user, logout, updateProfile } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark } = useTheme();
   const [notifyEmail, setNotifyEmail] = useState(user?.notifyEmail ?? true);
   const [notifySms,   setNotifySms]   = useState(user?.notifySms ?? false);
 
@@ -45,19 +46,8 @@ export default function ContractorSettingsPage() {
 
       <Card>
         <h2 className="font-bold text-gray-900 dark:text-white mb-4">Appearance</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Dark Mode</p>
-            <p className="text-xs text-gray-400">Toggle between light and dark theme</p>
-          </div>
-          <button
-            onClick={toggleTheme}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isDark ? 'bg-primary' : 'bg-gray-200'}`}
-            role="switch" aria-checked={isDark}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
-        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Choose your colour theme</p>
+        <ThemePicker />
       </Card>
 
       <Card>
