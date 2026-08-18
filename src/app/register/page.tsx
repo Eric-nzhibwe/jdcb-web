@@ -102,7 +102,7 @@ export default function RegisterPage() {
               label="Full Name *"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="John Banda"
+              placeholder="Enter full name"
             />
             <Input
               label="Email *"
