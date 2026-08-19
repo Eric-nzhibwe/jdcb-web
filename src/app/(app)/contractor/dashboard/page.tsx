@@ -101,7 +101,7 @@ export default function ContractorDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Briefcase}   label="Assigned"    value={projects.length} color="#2d9e5f" />
-        <StatCard icon={TrendingUp}  label="Active Proj" value={active}          color="#27ae60" />
+        <StatCard icon={TrendingUp}  label="Active Projects" value={active}          color="#27ae60" />
         <StatCard icon={CheckSquare} label="Tasks Done"  value={done}            color="#2980b9" />
         <StatCard icon={AlertCircle} label="Urgent"      value={urgent}          color="#e74c3c" />
       </div>
