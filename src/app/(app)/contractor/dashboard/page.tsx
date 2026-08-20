@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Briefcase, CheckSquare, AlertCircle, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,8 +9,7 @@ import { subscribeToTasksByAssignee } from '@/services/tasks';
 import { ProjectCard } from '@/components/cards/ProjectCard';
 import { TaskCard } from '@/components/cards/TaskCard';
 import { Button } from '@/components/ui/Button';
-import { formatCurrency, getInitials } from '@/lib/utils';
-import { TASK_STATUSES, TASK_PRIORITIES } from '@/lib/constants';
+import { getInitials } from '@/lib/utils';
 import type { Project, Task } from '@/types';
 
 function StatCard({ icon: Icon, label, value, color }: {
@@ -33,17 +32,26 @@ function StatCard({ icon: Icon, label, value, color }: {
 export default function ContractorDashboard() {
   const { user } = useAuth();
   const router   = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks,    setTasks]    = useState<Task[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const ready = useRef(0);
+  const [projects,      setProjects]      = useState<Project[]>([]);
+  const [tasks,         setTasks]         = useState<Task[]>([]);
+  const [loadProjects,  setLoadProjects]  = useState(true);
+  const [loadTasks,     setLoadTasks]     = useState(true);
+  const loading = loadProjects || loadTasks;
 
   useEffect(() => {
     if (!user) return;
-    ready.current = 0;
-    const check = () => { ready.current++; if (ready.current >= 2) setLoading(false); };
-    const u1 = subscribeToProjectsByContractor(user.id, (p) => { setProjects(p); check(); }, check);
-    const u2 = subscribeToTasksByAssignee(user.id, (t) => { setTasks(t); check(); }, check);
+    setLoadProjects(true);
+    setLoadTasks(true);
+    const u1 = subscribeToProjectsByContractor(
+      user.id,
+      (p) => { setProjects(p); setLoadProjects(false); },
+      ()  => setLoadProjects(false),
+    );
+    const u2 = subscribeToTasksByAssignee(
+      user.id,
+      (t) => { setTasks(t); setLoadTasks(false); },
+      ()  => setLoadTasks(false),
+    );
     return () => { u1(); u2(); };
   }, [user?.id]);
 
@@ -56,8 +64,7 @@ export default function ContractorDashboard() {
   const initials  = getInitials(user?.displayName ?? 'C');
 
   const sortedTasks = [...tasks].sort((a, b) => {
-    const pO = { urgent: 0, high: 1, medium: 2, low: 3 };
-    const sO = { in_progress: 0, pending: 1, blocked: 2, completed: 3 };
+    const pO: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
     if (a.status === 'completed' && b.status !== 'completed') return 1;
     if (b.status === 'completed' && a.status !== 'completed') return -1;
     return (pO[a.priority] ?? 9) - (pO[b.priority] ?? 9);

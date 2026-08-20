@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { Plus, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Input';
@@ -17,6 +17,7 @@ import { subscribeToTasksByProject, createTask } from '@/services/tasks';
 import { subscribeToMaterialsByProject, createMaterial } from '@/services/materials';
 import { subscribeToExpensesByProject, calculateTotalExpenses, createExpense } from '@/services/expenses';
 import { subscribeToReportsByProject, createProgressReport } from '@/services/reports';
+import { createNotification } from '@/services/notifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { PROJECT_STATUSES, TASK_PRIORITIES, EXPENSE_CATEGORIES, MATERIAL_UNITS } from '@/lib/constants';
 import { formatCurrency, formatDate, getStatusColor, getStatusLabel, toDateInputValue } from '@/lib/utils';
@@ -27,7 +28,6 @@ type Tab = 'overview' | 'tasks' | 'materials' | 'expenses' | 'reports';
 export default function ContractorProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const router   = useRouter();
 
   const [project,   setProject]   = useState<Project | null>(null);
   const [tasks,     setTasks]     = useState<Task[]>([]);
@@ -44,11 +44,12 @@ export default function ContractorProjectDetailPage() {
   const [reportModal,   setReportModal]   = useState(false);
 
   // Task form
-  const [tTitle, setTTitle] = useState('');
-  const [tDesc,  setTDesc]  = useState('');
-  const [tPri,   setTPri]   = useState<TaskPriority>('medium');
-  const [tDue,   setTDue]   = useState('');
-  const [tSaving, setTSaving] = useState(false);
+  const [tTitle,   setTTitle]   = useState('');
+  const [tDesc,    setTDesc]    = useState('');
+  const [tPri,     setTPri]     = useState<TaskPriority>('medium');
+  const [tDue,     setTDue]     = useState('');
+  const [tNotify,  setTNotify]  = useState(true);
+  const [tSaving,  setTSaving]  = useState(false);
 
   // Material form
   const [mName,  setMName]  = useState('');
@@ -68,10 +69,11 @@ export default function ContractorProjectDetailPage() {
   const [eSaving, setESaving] = useState(false);
 
   // Report form
-  const [rTitle, setRTitle] = useState('');
-  const [rDesc,  setRDesc]  = useState('');
-  const [rPct,   setRPct]   = useState('');
-  const [rSaving, setRSaving] = useState(false);
+  const [rTitle,   setRTitle]   = useState('');
+  const [rDesc,    setRDesc]    = useState('');
+  const [rPct,     setRPct]     = useState('');
+  const [rNotify,  setRNotify]  = useState(true);
+  const [rSaving,  setRSaving]  = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -98,10 +100,29 @@ export default function ContractorProjectDetailPage() {
   ];
 
   const saveTask = async () => {
-    if (!id || !tTitle.trim()) return;
+    if (!id || !tTitle.trim() || !project) return;
     setTSaving(true);
-    await createTask({ projectId: id, title: tTitle, description: tDesc, priority: tPri, dueDate: tDue || undefined, assignedTo: user?.id, assignedToName: user?.displayName });
-    setTaskModal(false); setTTitle(''); setTDesc(''); setTDue(''); setTSaving(false);
+    const task = await createTask({
+      projectId:       id,
+      title:           tTitle,
+      description:     tDesc,
+      priority:        tPri,
+      dueDate:         tDue || undefined,
+      assignedTo:      user?.id,
+      assignedToName:  user?.displayName,
+    });
+    // Notify client if project is active, in_progress-equivalent (active), or completed
+    if (tNotify && ['active', 'completed'].includes(project.status) && project.clientId) {
+      await createNotification({
+        userId:      project.clientId,
+        title:       `New task added — ${project.name}`,
+        body:        `"${task.title}" (${tPri} priority)${tDue ? ` · Due ${tDue}` : ''} was added by ${user?.displayName ?? 'your contractor'}.`,
+        type:        'task',
+        referenceId: id,
+      });
+    }
+    setTaskModal(false);
+    setTTitle(''); setTDesc(''); setTDue(''); setTNotify(true); setTSaving(false);
   };
 
   const saveMaterial = async () => {
@@ -119,12 +140,30 @@ export default function ContractorProjectDetailPage() {
   };
 
   const saveReport = async () => {
-    if (!id || !rTitle.trim() || !rDesc.trim() || !rPct) return;
+    if (!id || !rTitle.trim() || !rDesc.trim() || !rPct || !project) return;
     setRSaving(true);
-    await createProgressReport({ projectId: id, title: rTitle, description: rDesc, progressPercent: parseInt(rPct), images: [], createdBy: user?.id ?? '', createdByName: user?.displayName ?? '' });
-    // update project progress
-    await updateProject(id, { progress: parseInt(rPct) });
-    setReportModal(false); setRTitle(''); setRDesc(''); setRPct(''); setRSaving(false);
+    const pct = parseInt(rPct);
+    await createProgressReport({
+      projectId:       id,
+      title:           rTitle,
+      description:     rDesc,
+      progressPercent: pct,
+      images:          [],
+      createdBy:       user?.id ?? '',
+      createdByName:   user?.displayName ?? '',
+    });
+    await updateProject(id, { progress: pct });
+    if (rNotify && project.clientId) {
+      await createNotification({
+        userId:      project.clientId,
+        title:       `Progress report — ${project.name}`,
+        body:        `"${rTitle}": ${rDesc.slice(0, 80)}${rDesc.length > 80 ? '…' : ''} · Progress now at ${pct}%.`,
+        type:        'report',
+        referenceId: id,
+      });
+    }
+    setReportModal(false);
+    setRTitle(''); setRDesc(''); setRPct(''); setRNotify(true); setRSaving(false);
   };
 
   return (
@@ -142,7 +181,27 @@ export default function ContractorProjectDetailPage() {
       <Select
         label="Update Status"
         value={project.status}
-        onChange={async (e) => { await updateProject(id!, { status: e.target.value as Project['status'] }); }}
+        onChange={async (e) => {
+          const newStatus = e.target.value as Project['status'];
+          await updateProject(id!, { status: newStatus });
+          // Always notify the client on meaningful status changes
+          if (project.clientId && newStatus !== project.status) {
+            const labelMap: Record<string, string> = {
+              active:    'Your project is now Active 🚀',
+              on_hold:   'Your project has been put On Hold ⏸',
+              completed: 'Your project has been marked Completed 🎉',
+              cancelled: 'Your project has been Cancelled',
+              planning:  'Your project is back in Planning',
+            };
+            await createNotification({
+              userId:      project.clientId,
+              title:       labelMap[newStatus] ?? `Project status updated — ${project.name}`,
+              body:        `"${project.name}" status was changed to ${newStatus.replace('_', ' ')} by ${user?.displayName ?? 'your contractor'}.`,
+              type:        'project',
+              referenceId: id!,
+            });
+          }
+        }}
         options={PROJECT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
         className="max-w-xs"
       />
@@ -223,6 +282,29 @@ export default function ContractorProjectDetailPage() {
           <Textarea label="Description" value={tDesc} onChange={(e) => setTDesc(e.target.value)} placeholder="Task details..." />
           <Select label="Priority" value={tPri} onChange={(e) => setTPri(e.target.value as TaskPriority)} options={TASK_PRIORITIES.map((p) => ({ value: p.value, label: p.label }))} />
           <Input label="Due Date" type="date" value={tDue} onChange={(e) => setTDue(e.target.value)} />
+
+          {/* Notify toggle — only shown for active / completed projects */}
+          {['active', 'completed'].includes(project.status) && (
+            <label className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl cursor-pointer select-none">
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={tNotify}
+                  onChange={(e) => setTNotify(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-6 bg-gray-200 dark:bg-gray-600 peer-checked:bg-primary rounded-full transition-colors" />
+                <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all peer-checked:translate-x-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-blue-500" /> Notify client
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Send an in-app notification to {project.clientName}</p>
+              </div>
+            </label>
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => setTaskModal(false)}>Cancel</Button>
             <Button className="flex-1" loading={tSaving} onClick={saveTask}>Save Task</Button>
@@ -269,6 +351,27 @@ export default function ContractorProjectDetailPage() {
           <Input label="Title *" value={rTitle} onChange={(e) => setRTitle(e.target.value)} placeholder="Weekly Update" />
           <Textarea label="Description *" value={rDesc} onChange={(e) => setRDesc(e.target.value)} placeholder="What was completed..." />
           <Input label="Progress % *" type="number" min="0" max="100" value={rPct} onChange={(e) => setRPct(e.target.value)} placeholder="65" />
+
+          {/* Notify toggle */}
+          <label className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl cursor-pointer select-none">
+            <div className="relative flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={rNotify}
+                onChange={(e) => setRNotify(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-6 bg-gray-200 dark:bg-gray-600 peer-checked:bg-primary rounded-full transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all peer-checked:translate-x-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                <Bell className="w-3.5 h-3.5 text-blue-500" /> Notify client
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Send progress report notification to {project.clientName}</p>
+            </div>
+          </label>
+
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => setReportModal(false)}>Cancel</Button>
             <Button className="flex-1" loading={rSaving} onClick={saveReport}>Submit Report</Button>

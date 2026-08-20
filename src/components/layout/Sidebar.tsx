@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -9,6 +10,10 @@ import {
 import { cn, getInitials } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { NotificationBell } from '@/components/ui/NotificationBell';
+import { WhatsAppButton } from '@/components/ui/WhatsAppButton';
+import { subscribeToProjectsByClient } from '@/services/projects';
+import type { Project } from '@/types';
 
 interface NavItem {
   label: string;
@@ -36,10 +41,16 @@ export function Sidebar() {
   const { themeMode } = useTheme();
   const pathname = usePathname();
 
+  // Fetch client's projects so the WhatsApp button can resolve contractor phones
+  const [clientProjects, setClientProjects] = useState<Project[]>([]);
+  useEffect(() => {
+    if (user?.role !== 'client') return;
+    const unsub = subscribeToProjectsByClient(user.id, setClientProjects);
+    return unsub;
+  }, [user?.id, user?.role]);
+
   const nav = user?.role === 'client' ? clientNav : contractorNav;
   const initials = getInitials(user?.displayName ?? 'U');
-
-  // Settings href for the quick-link
   const settingsHref = user?.role === 'client' ? '/client/settings' : '/contractor/settings';
 
   return (
@@ -66,10 +77,11 @@ export function Sidebar() {
         >
           <span className="text-sm font-black" style={{ color: 'var(--secondary)' }}>{initials}</span>
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white truncate">{user?.displayName}</p>
           <p className="text-xs text-white/50 capitalize">{user?.role}</p>
         </div>
+        <NotificationBell />
       </div>
 
       {/* Nav */}
@@ -93,8 +105,20 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom — theme hint + sign out */}
+      {/* Bottom — WhatsApp (client only) + theme hint + sign out */}
       <div className="px-4 pb-6 space-y-1">
+        {/* WhatsApp — client only, sits at the top of the bottom section so it's always visible */}
+        {user?.role === 'client' && (
+          <>
+            <div className="mb-1 px-4 pt-1 pb-0.5">
+              <div className="h-px bg-white/10" />
+            </div>
+            <WhatsAppButton projects={clientProjects} />
+            <div className="mb-1 px-4 pt-0.5 pb-1">
+              <div className="h-px bg-white/10" />
+            </div>
+          </>
+        )}
         <Link
           href={settingsHref}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all"
