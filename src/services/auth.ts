@@ -17,12 +17,20 @@ export async function getUserById(uid: string): Promise<User | null> {
   const snap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.users, uid));
   if (!snap.exists()) return null;
   const d = snap.data();
+  // Normalize phone — cover field aliases used by the mobile app registration
+  const phone: string = (
+    d.phone ??
+    d.phoneNumber ??
+    d.mobile ??
+    d.contactPhone ??
+    ''
+  ).toString().trim();
   return {
     id: snap.id,
     email: d.email,
     displayName: d.displayName,
     role: d.role,
-    phone: d.phone,
+    phone,
     company: d.company,
     photoURL: d.photoURL,
     createdAt: d.createdAt?.toDate?.()?.toISOString() ?? d.createdAt,
