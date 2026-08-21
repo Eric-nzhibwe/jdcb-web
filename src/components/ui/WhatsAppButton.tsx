@@ -175,7 +175,7 @@ export function WhatsAppButton({ projects }: Props) {
         className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white/70 hover:bg-white/10 hover:text-white"
       >
         <WaIcon />
-        Chat Contractor
+        Talk to Contractor On Whatsapp
       </a>
     );
   }
