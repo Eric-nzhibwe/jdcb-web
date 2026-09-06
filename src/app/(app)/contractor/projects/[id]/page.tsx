@@ -18,6 +18,8 @@ import { subscribeToMaterialsByProject, createMaterial } from '@/services/materi
 import { subscribeToExpensesByProject, calculateTotalExpenses, createExpense } from '@/services/expenses';
 import { subscribeToReportsByProject, createProgressReport } from '@/services/reports';
 import { createNotification } from '@/services/notifications';
+import { sendSms } from '@/services/sms';
+import { getUserById } from '@/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { PROJECT_STATUSES, TASK_PRIORITIES, EXPENSE_CATEGORIES, MATERIAL_UNITS } from '@/lib/constants';
 import { formatCurrency, formatDate, getStatusColor, getStatusLabel, toDateInputValue } from '@/lib/utils';
@@ -36,6 +38,7 @@ export default function ContractorProjectDetailPage() {
   const [reports,   setReports]   = useState<ProgressReport[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [loading,   setLoading]   = useState(true);
+  const [clientPhone, setClientPhone] = useState<string>('');
 
   // Modals
   const [taskModal,     setTaskModal]     = useState(false);
@@ -77,7 +80,16 @@ export default function ContractorProjectDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    const u1 = subscribeToProject(id, (p) => { setProject(p); setLoading(false); });
+    const u1 = subscribeToProject(id, (p) => {
+      setProject(p);
+      setLoading(false);
+      // Fetch client phone for SMS notifications
+      if (p?.clientId) {
+        getUserById(p.clientId)
+          .then((u) => setClientPhone(u?.phone ?? ''))
+          .catch(() => {});
+      }
+    });
     const u2 = subscribeToTasksByProject(id, setTasks);
     const u3 = subscribeToMaterialsByProject(id, setMaterials);
     const u4 = subscribeToExpensesByProject(id, setExpenses);
@@ -111,16 +123,28 @@ export default function ContractorProjectDetailPage() {
       assignedTo:      user?.id,
       assignedToName:  user?.displayName,
     });
-    // Notify client if project is active, in_progress-equivalent (active), or completed
+
     if (tNotify && ['active', 'completed'].includes(project.status) && project.clientId) {
+      const notifBody = `"${task.title}" (${tPri} priority)${tDue ? ` · Due ${tDue}` : ''} was added by ${user?.displayName ?? 'your contractor'}.`;
+
+      // In-app notification
       await createNotification({
         userId:      project.clientId,
         title:       `New task added — ${project.name}`,
-        body:        `"${task.title}" (${tPri} priority)${tDue ? ` · Due ${tDue}` : ''} was added by ${user?.displayName ?? 'your contractor'}.`,
+        body:        notifBody,
         type:        'task',
         referenceId: id,
       });
+
+      // SMS — fire and forget, don't block the UI
+      if (clientPhone) {
+        sendSms(
+          clientPhone,
+          `JDCB: New task "${task.title}" added to "${project.name}". Priority: ${tPri}.${tDue ? ` Due: ${tDue}.` : ''} - ${user?.displayName ?? 'Contractor'}`,
+        );
+      }
     }
+
     setTaskModal(false);
     setTTitle(''); setTDesc(''); setTDue(''); setTNotify(true); setTSaving(false);
   };
@@ -153,15 +177,28 @@ export default function ContractorProjectDetailPage() {
       createdByName:   user?.displayName ?? '',
     });
     await updateProject(id, { progress: pct });
+
     if (rNotify && project.clientId) {
+      const notifBody = `"${rTitle}": ${rDesc.slice(0, 80)}${rDesc.length > 80 ? '…' : ''} · Progress now at ${pct}%.`;
+
+      // In-app notification
       await createNotification({
         userId:      project.clientId,
         title:       `Progress report — ${project.name}`,
-        body:        `"${rTitle}": ${rDesc.slice(0, 80)}${rDesc.length > 80 ? '…' : ''} · Progress now at ${pct}%.`,
+        body:        notifBody,
         type:        'report',
         referenceId: id,
       });
+
+      // SMS
+      if (clientPhone) {
+        sendSms(
+          clientPhone,
+          `JDCB: Progress update on "${project.name}" — ${pct}% complete. "${rTitle}": ${rDesc.slice(0, 80)}${rDesc.length > 80 ? '...' : ''} - ${user?.displayName ?? 'Contractor'}`,
+        );
+      }
     }
+
     setReportModal(false);
     setRTitle(''); setRDesc(''); setRPct(''); setRNotify(true); setRSaving(false);
   };
@@ -184,7 +221,6 @@ export default function ContractorProjectDetailPage() {
         onChange={async (e) => {
           const newStatus = e.target.value as Project['status'];
           await updateProject(id!, { status: newStatus });
-          // Always notify the client on meaningful status changes
           if (project.clientId && newStatus !== project.status) {
             const labelMap: Record<string, string> = {
               active:    'Your project is now Active 🚀',
@@ -193,13 +229,25 @@ export default function ContractorProjectDetailPage() {
               cancelled: 'Your project has been Cancelled',
               planning:  'Your project is back in Planning',
             };
+            const title = labelMap[newStatus] ?? `Project status updated — ${project.name}`;
+            const body  = `"${project.name}" status was changed to ${newStatus.replace('_', ' ')} by ${user?.displayName ?? 'your contractor'}.`;
+
+            // In-app notification
             await createNotification({
               userId:      project.clientId,
-              title:       labelMap[newStatus] ?? `Project status updated — ${project.name}`,
-              body:        `"${project.name}" status was changed to ${newStatus.replace('_', ' ')} by ${user?.displayName ?? 'your contractor'}.`,
+              title,
+              body,
               type:        'project',
               referenceId: id!,
             });
+
+            // SMS
+            if (clientPhone) {
+              sendSms(
+                clientPhone,
+                `JDCB: ${title} — "${project.name}" is now ${newStatus.replace('_', ' ')}. - ${user?.displayName ?? 'Contractor'}`,
+              );
+            }
           }
         }}
         options={PROJECT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
