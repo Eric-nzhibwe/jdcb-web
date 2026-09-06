@@ -18,7 +18,6 @@ import { subscribeToMaterialsByProject, createMaterial } from '@/services/materi
 import { subscribeToExpensesByProject, calculateTotalExpenses, createExpense } from '@/services/expenses';
 import { subscribeToReportsByProject, createProgressReport } from '@/services/reports';
 import { createNotification } from '@/services/notifications';
-import { sendSms } from '@/services/sms';
 import { getUserById } from '@/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { PROJECT_STATUSES, TASK_PRIORITIES, EXPENSE_CATEGORIES, MATERIAL_UNITS } from '@/lib/constants';
@@ -135,14 +134,6 @@ export default function ContractorProjectDetailPage() {
         type:        'task',
         referenceId: id,
       });
-
-      // SMS — fire and forget, don't block the UI
-      if (clientPhone) {
-        sendSms(
-          clientPhone,
-          `JDCB: New task "${task.title}" added to "${project.name}". Priority: ${tPri}.${tDue ? ` Due: ${tDue}.` : ''} - ${user?.displayName ?? 'Contractor'}`,
-        );
-      }
     }
 
     setTaskModal(false);
@@ -189,14 +180,6 @@ export default function ContractorProjectDetailPage() {
         type:        'report',
         referenceId: id,
       });
-
-      // SMS
-      if (clientPhone) {
-        sendSms(
-          clientPhone,
-          `JDCB: Progress update on "${project.name}" — ${pct}% complete. "${rTitle}": ${rDesc.slice(0, 80)}${rDesc.length > 80 ? '...' : ''} - ${user?.displayName ?? 'Contractor'}`,
-        );
-      }
     }
 
     setReportModal(false);
@@ -240,14 +223,6 @@ export default function ContractorProjectDetailPage() {
               type:        'project',
               referenceId: id!,
             });
-
-            // SMS
-            if (clientPhone) {
-              sendSms(
-                clientPhone,
-                `JDCB: ${title} — "${project.name}" is now ${newStatus.replace('_', ' ')}. - ${user?.displayName ?? 'Contractor'}`,
-              );
-            }
           }
         }}
         options={PROJECT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
