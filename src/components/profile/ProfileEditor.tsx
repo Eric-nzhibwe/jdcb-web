@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Camera, Loader2, Check, X, Pencil, Trash2 } from 'lucide-react';
+import { Camera, Check, X, Pencil, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { uploadProfilePhoto } from '@/services/storage';
-import { updateUserProfile } from '@/services/auth';
 import { getInitials } from '@/lib/utils';
 import type { User } from '@/types';
 
@@ -14,73 +13,104 @@ interface ProfileEditorProps {
   onSave: (updates: Partial<User>) => Promise<void>;
 }
 
-type State = 'idle' | 'saving' | 'success' | 'error';
+type SaveState = 'idle' | 'saving' | 'success' | 'error';
+type PhotoState = 'idle' | 'uploading' | 'done' | 'error';
 
 export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
+  // Profile fields
   const [editing,     setEditing]     = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [phone,       setPhone]       = useState(user.phone ?? '');
   const [company,     setCompany]     = useState(user.company ?? '');
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoFile,   setPhotoFile]   = useState<File | null>(null);
-  const [state,       setState]       = useState<State>('idle');
-  const [errorMsg,    setErrorMsg]    = useState('');
+  const [saveState,   setSaveState]   = useState<SaveState>('idle');
+  const [saveError,   setSaveError]   = useState('');
+
+  // Photo — saved immediately on pick, independent of the form
+  const [currentPhoto, setCurrentPhoto] = useState<string | null>(user.photoURL ?? null);
+  const [photoState,   setPhotoState]   = useState<PhotoState>('idle');
+  const [photoError,   setPhotoError]   = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentPhoto = photoPreview ?? user.photoURL ?? null;
-  const initials     = getInitials(user.displayName);
+  const initials = getInitials(user.displayName);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* ── Photo upload — fires immediately when file is chosen ── */
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset input so same file can be re-selected if needed
+    e.target.value = '';
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setErrorMsg('Image must be under 5 MB.'); return; }
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
-    setErrorMsg('');
-  };
+
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('Image must be under 5 MB.');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Please select an image file.');
+      return;
+    }
+
+    // Show local preview instantly
+    const localPreview = URL.createObjectURL(file);
+    setCurrentPhoto(localPreview);
+    setPhotoState('uploading');
+    setPhotoError('');
+
+    try {
+      // Upload to Firebase Storage with a 30s timeout
+      const uploadPromise = uploadProfilePhoto(user.id, file);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Upload timed out. Please try again.')), 30_000)
+      );
+      const downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
+
+      // Persist the URL to Firestore immediately
+      await onSave({ photoURL: downloadURL });
+      setCurrentPhoto(downloadURL);
+      setPhotoState('done');
+      setTimeout(() => setPhotoState('idle'), 2000);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'Photo upload failed. Try again.');
+      setPhotoState('error');
+      // Revert preview back to last saved photo
+      setCurrentPhoto(user.photoURL ?? null);
+    }
+  }, [user.id, user.photoURL, onSave]);
+
+  /* ── Profile field save ── */
+  const handleSave = useCallback(async () => {
+    if (!displayName.trim()) { setSaveError('Name is required.'); return; }
+    setSaveState('saving'); setSaveError('');
+    try {
+      await onSave({
+        displayName: displayName.trim(),
+        phone:   phone.trim(),
+        company: company.trim(),
+      });
+      setSaveState('success');
+      setEditing(false);
+      setTimeout(() => setSaveState('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save. Try again.');
+      setSaveState('error');
+    }
+  }, [displayName, phone, company, onSave]);
 
   const handleCancel = useCallback(() => {
     setEditing(false);
     setDisplayName(user.displayName);
     setPhone(user.phone ?? '');
     setCompany(user.company ?? '');
-    setPhotoPreview(null);
-    setPhotoFile(null);
-    setErrorMsg('');
-    setState('idle');
+    setSaveError('');
+    setSaveState('idle');
   }, [user]);
-
-  const handleSave = async () => {
-    if (!displayName.trim()) { setErrorMsg('Name is required.'); return; }
-    setState('saving'); setErrorMsg('');
-    try {
-      let photoURL = user.photoURL;
-      if (photoFile) {
-        photoURL = await uploadProfilePhoto(user.id, photoFile);
-      }
-      const updates: Partial<User> = {
-        displayName: displayName.trim(),
-        phone: phone.trim(),
-        company: company.trim(),
-        ...(photoURL !== user.photoURL && { photoURL }),
-      };
-      await onSave(updates);
-      setState('success');
-      setEditing(false);
-      setPhotoFile(null);
-      setPhotoPreview(null);
-      setTimeout(() => setState('idle'), 2000);
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to save. Try again.');
-      setState('error');
-    }
-  };
 
   return (
     <div className="space-y-6">
-      {/* Avatar */}
+
+      {/* ── Avatar row ── */}
       <div className="flex items-center gap-5">
         <div className="relative flex-shrink-0">
+          {/* Photo or initials */}
           {currentPhoto ? (
             <img
               src={currentPhoto}
@@ -92,35 +122,48 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
               <span className="text-2xl font-black text-white">{initials}</span>
             </div>
           )}
-          {editing && (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute -bottom-2 -right-2 w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-md hover:bg-primary-dark transition-colors"
-              aria-label="Change photo"
-            >
-              <Camera className="w-4 h-4 text-white" />
-            </button>
+
+          {/* Upload-state overlay */}
+          {photoState === 'uploading' && (
+            <div className="absolute inset-0 rounded-2xl bg-black/50 flex flex-col items-center justify-center gap-1">
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+              <span className="text-white text-[10px] font-semibold">Saving…</span>
+            </div>
           )}
+          {photoState === 'done' && (
+            <div className="absolute inset-0 rounded-2xl bg-green-500/60 flex items-center justify-center">
+              <Check className="w-7 h-7 text-white" />
+            </div>
+          )}
+
+          {/* Camera button — always visible so photo can be changed any time */}
+          <button
+            type="button"
+            onClick={() => { setPhotoError(''); fileInputRef.current?.click(); }}
+            disabled={photoState === 'uploading'}
+            className="absolute -bottom-2 -right-2 w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-md hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Change profile photo"
+          >
+            {photoState === 'uploading'
+              ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+              : <Camera className="w-4 h-4 text-white" />
+            }
+          </button>
+
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/gif"
             className="hidden"
             onChange={handleFileChange}
           />
         </div>
 
         <div className="flex-1 min-w-0">
-          {!editing ? (
-            <div>
-              <h2 className="text-xl font-black text-gray-900 dark:text-white truncate">{user.displayName}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 capitalize mt-0.5">{user.role}</p>
-              {user.company && <p className="text-sm text-gray-400 truncate">{user.company}</p>}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Click the camera icon to change your photo (max 5 MB)</p>
-          )}
+          <h2 className="text-xl font-black text-gray-900 dark:text-white truncate">{user.displayName}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 capitalize mt-0.5">{user.role}</p>
+          {user.company && <p className="text-sm text-gray-400 truncate">{user.company}</p>}
+          <p className="text-xs text-gray-400 mt-1">Tap the camera to update your photo instantly</p>
         </div>
 
         {!editing && (
@@ -130,7 +173,21 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
         )}
       </div>
 
-      {/* Fields */}
+      {/* Photo error */}
+      {photoError && (
+        <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg flex items-center gap-2">
+          <X className="w-4 h-4 flex-shrink-0" /> {photoError}
+        </p>
+      )}
+
+      {/* Photo success */}
+      {photoState === 'done' && (
+        <p className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg flex items-center gap-2">
+          <Check className="w-4 h-4" /> Photo saved successfully
+        </p>
+      )}
+
+      {/* ── Profile fields ── */}
       {editing ? (
         <div className="space-y-4">
           <Input
@@ -153,24 +210,33 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
             placeholder="Your company or business name"
           />
 
-          {errorMsg && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{errorMsg}</p>
+          {saveError && (
+            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{saveError}</p>
           )}
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={handleCancel} disabled={state === 'saving'}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={handleCancel}
+              disabled={saveState === 'saving'}
+            >
               <X className="w-4 h-4" /> Cancel
             </Button>
-            <Button className="flex-1" onClick={handleSave} loading={state === 'saving'}>
-              {state === 'saving' ? 'Saving…' : <><Check className="w-4 h-4" /> Save Changes</>}
+            <Button
+              className="flex-1"
+              onClick={handleSave}
+              loading={saveState === 'saving'}
+            >
+              {saveState === 'saving' ? 'Saving…' : <><Check className="w-4 h-4" /> Save Changes</>}
             </Button>
           </div>
         </div>
       ) : (
-        <div className="space-y-0 divide-y divide-gray-100 dark:divide-gray-700">
+        <div className="divide-y divide-gray-100 dark:divide-gray-700">
           {[
             ['Email',   user.email],
-            ['Phone',   user.phone  || '—'],
+            ['Phone',   user.phone   || '—'],
             ['Company', user.company || '—'],
           ].map(([label, val]) => (
             <div key={label} className="flex items-center justify-between py-3">
@@ -181,10 +247,11 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
         </div>
       )}
 
-      {state === 'success' && !editing && (
-        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
+      {/* Profile save success */}
+      {saveState === 'success' && !editing && (
+        <p className="text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg flex items-center gap-2">
           <Check className="w-4 h-4" /> Profile updated successfully
-        </div>
+        </p>
       )}
     </div>
   );
