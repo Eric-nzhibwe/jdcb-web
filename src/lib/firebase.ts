@@ -1,16 +1,9 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-
-if (!apiKey) {
-  console.warn(
-    'Firebase env vars are not set. Firebase will not be initialized. ' +
-    'Set NEXT_PUBLIC_FIREBASE_* environment variables in your deployment environment.'
-  );
-}
 
 const firebaseConfig = {
   apiKey,
@@ -21,19 +14,29 @@ const firebaseConfig = {
   appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+/** Whether Firebase was successfully initialised with real credentials */
+export const firebaseReady = Boolean(apiKey);
+
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
 
-if (apiKey) {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+if (firebaseReady) {
+  app     = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   auth    = getAuth(app);
   db      = getFirestore(app);
   storage = getStorage(app);
 } else {
-  // Stub values so imports don't crash during static generation.
-  // Pages that use Firebase are protected by auth guards at runtime.
+  if (typeof window !== 'undefined') {
+    // Only warn in the browser — not during static generation
+    console.warn(
+      '[JDCB] Firebase env vars are missing. ' +
+      'Set NEXT_PUBLIC_FIREBASE_* in your Render environment and redeploy.'
+    );
+  }
+  // Safe no-op stubs — nothing that calls onAuthStateChanged etc. will run
+  // because AuthContext checks `firebaseReady` before subscribing.
   app     = {} as FirebaseApp;
   auth    = {} as Auth;
   db      = {} as Firestore;

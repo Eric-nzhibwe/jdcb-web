@@ -5,12 +5,14 @@ import {
   registerUser, loginUser, logoutUser,
   subscribeToAuthState, updateUserProfile,
 } from '@/services/auth';
+import { firebaseReady } from '@/lib/firebase';
 import type { User, RegisterData, LoginData } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
+  firebaseReady: boolean;
   register: (data: RegisterData) => Promise<User>;
   login: (data: LoginData) => Promise<User>;
   logout: () => Promise<void>;
@@ -26,6 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
+    // Don't attempt Firebase calls if the SDK wasn't initialized
+    if (!firebaseReady) {
+      setLoading(false);
+      return;
+    }
     const unsub = subscribeToAuthState((u) => { setUser(u); setLoading(false); });
     return unsub;
   }, []);
@@ -66,7 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearError = useCallback(() => setError(null), []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, register, login, logout, updateProfile, clearError }}>
+    <AuthContext.Provider value={{
+      user, loading, error, firebaseReady,
+      register, login, logout, updateProfile, clearError,
+    }}>
       {children}
     </AuthContext.Provider>
   );
