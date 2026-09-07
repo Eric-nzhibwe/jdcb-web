@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { NotificationBell } from '@/components/ui/NotificationBell';
@@ -12,25 +12,32 @@ import type { Project } from '@/types';
 function MobileWhatsAppIcon({ projects }: { projects: Project[] }) {
   const [url, setUrl] = useState<string | null>(null);
 
+  // Stable key derived from contractor IDs so the effect only re-runs when they change
+  const contractorKey = useMemo(
+    () => projects.map((p) => p.contractorId).join(','),
+    [projects]
+  );
+
   useEffect(() => {
-    if (projects.length === 0) return;
-    // Use dynamic import to avoid server-side import issues
+    if (!contractorKey) return;
     import('@/services/auth').then(({ getUserById }) => {
-      const sorted = [...projects].sort((a, b) =>
-        (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1)
+      const sorted = [...projects].sort(
+        (a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1)
       );
       const first = sorted.find((p) => p.contractorId);
       if (!first) return;
-      getUserById(first.contractorId).then((u) => {
-        if (!u?.phone) return;
-        const digits = u.phone.replace(/\D/g, '');
-        const msg = encodeURIComponent(
-          `Hi ${first.contractorName}, I'd like to discuss my project with you.`
-        );
-        setUrl(`https://wa.me/${digits}?text=${msg}`);
-      }).catch(() => {});
+      getUserById(first.contractorId)
+        .then((u) => {
+          if (!u?.phone) return;
+          const digits = u.phone.replace(/\D/g, '');
+          const msg = encodeURIComponent(
+            `Hi ${first.contractorName}, I'd like to discuss my project with you.`
+          );
+          setUrl(`https://wa.me/${digits}?text=${msg}`);
+        })
+        .catch(() => {});
     });
-  }, [projects.map((p) => p.contractorId).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [contractorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!url) return null;
 
@@ -60,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [clientProjects, setClientProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    if (user?.role !== 'client') return;
+    if (user?.role !== 'client' || !user?.id) return;
     const unsub = subscribeToProjectsByClient(user.id, setClientProjects);
     return unsub;
   }, [user?.id, user?.role]);
@@ -97,7 +104,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           <span className="flex-1 text-sm font-black tracking-widest">JDCB</span>
-          {/* WhatsApp icon — only for clients */}
           {user?.role === 'client' && <MobileWhatsAppIcon projects={clientProjects} />}
           <NotificationBell />
         </header>
