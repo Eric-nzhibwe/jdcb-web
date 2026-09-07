@@ -99,6 +99,7 @@ export default function ClientDashboard() {
   }, [user?.id]);
 
   // Subscribe to tasks for ALL client projects (aggregate)
+  const projectIds = projects.map((p) => p.id).join(',');
   useEffect(() => {
     if (projects.length === 0) { setTasks([]); return; }
 
@@ -110,7 +111,7 @@ export default function ClientDashboard() {
       }),
     );
     return () => unsubs.forEach((u) => u());
-  }, [projects.map((p) => p.id).join(',')]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── derived stats ── */
   const active    = projects.filter((p) => p.status === 'active').length;
