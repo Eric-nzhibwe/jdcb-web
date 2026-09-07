@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, Check } from 'lucide-react';
+import { Phone, Check, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllContractors, createProject } from '@/services/projects';
+import { getAllContractors, createProject, type ContractorSummary } from '@/services/projects';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { ContractorProfileModal } from '@/components/contractor/ContractorProfileModal';
 import { toDateInputValue, getInitials } from '@/lib/utils';
-
-type Contractor = { id: string; displayName: string; email: string; phone?: string; company?: string };
 
 export default function ClientNewProjectPage() {
   const { user } = useAuth();
@@ -22,9 +21,13 @@ export default function ClientNewProjectPage() {
   const [endDate,      setEndDate]      = useState('');
   const [budget,       setBudget]       = useState('');
   const [contractorId, setContractorId] = useState('');
-  const [contractors,  setContractors]  = useState<Contractor[]>([]);
+  const [contractors,  setContractors]  = useState<ContractorSummary[]>([]);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
+
+  // Contractor profile modal
+  const [previewContractor, setPreviewContractor] = useState<ContractorSummary | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => { getAllContractors().then(setContractors).catch(console.error); }, []);
 
@@ -54,6 +57,12 @@ export default function ClientNewProjectPage() {
     }
   };
 
+  const openProfile = (e: React.MouseEvent, contractor: ContractorSummary) => {
+    e.stopPropagation();
+    setPreviewContractor(contractor);
+    setModalOpen(true);
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
@@ -76,7 +85,10 @@ export default function ClientNewProjectPage() {
 
         {/* Contractor selection */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-card">
-          <h2 className="font-bold text-gray-900 dark:text-white mb-4">Assign Contractor *</h2>
+          <h2 className="font-bold text-gray-900 dark:text-white mb-1">Assign Contractor *</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Tap a contractor to select them. Use the <Eye className="inline w-3 h-3" /> icon to view their full profile.
+          </p>
           {contractors.length === 0 ? (
             <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3">
               No contractors registered yet. A contractor needs to sign up first.
@@ -92,12 +104,27 @@ export default function ClientNewProjectPage() {
                     type="button"
                     onClick={() => setContractorId(c.id)}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                      selected ? 'border-primary bg-primary/5' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+                      selected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${selected ? 'bg-primary' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                      <span className={`text-sm font-black ${selected ? 'text-white' : 'text-primary'}`}>{initials}</span>
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      {c.photoURL ? (
+                        <img
+                          src={c.photoURL}
+                          alt={c.displayName}
+                          className={`w-10 h-10 rounded-xl object-cover ring-2 ${selected ? 'ring-primary' : 'ring-gray-200 dark:ring-gray-700'}`}
+                        />
+                      ) : (
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selected ? 'bg-primary' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                          <span className={`text-sm font-black ${selected ? 'text-white' : 'text-primary'}`}>{initials}</span>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 dark:text-white text-sm">{c.displayName}</p>
                       {c.company && <p className="text-xs text-gray-500 dark:text-gray-400">{c.company}</p>}
@@ -108,7 +135,20 @@ export default function ClientNewProjectPage() {
                         </p>
                       )}
                     </div>
-                    {selected && <Check className="w-5 h-5 text-primary flex-shrink-0" />}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* View profile button */}
+                      <button
+                        type="button"
+                        onClick={(e) => openProfile(e, c)}
+                        className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
+                        aria-label={`View ${c.displayName}'s profile`}
+                      >
+                        <Eye className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      </button>
+                      {selected && <Check className="w-5 h-5 text-primary" />}
+                    </div>
                   </button>
                 );
               })}
@@ -121,10 +161,19 @@ export default function ClientNewProjectPage() {
         <div className="flex gap-3">
           <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>Cancel</Button>
           <Button type="submit" className="flex-1" loading={loading}>
-            {contractorId ? `Assign Project` : 'Create Project'}
+            {contractorId ? 'Assign Project' : 'Create Project'}
           </Button>
         </div>
       </form>
+
+      {/* Contractor profile modal */}
+      <ContractorProfileModal
+        contractor={previewContractor}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSelect={(c) => setContractorId(c.id)}
+        isSelected={previewContractor?.id === contractorId}
+      />
     </div>
   );
 }

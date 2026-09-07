@@ -81,11 +81,24 @@ export async function getAllClients(): Promise<{ id: string; displayName: string
   return (await getDocs(q)).docs.map((d) => ({ id: d.id, displayName: d.data().displayName, email: d.data().email }));
 }
 
-export async function getAllContractors(): Promise<{ id: string; displayName: string; email: string; phone?: string; company?: string }[]> {
+export interface ContractorSummary {
+  id: string;
+  displayName: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  photoURL?: string;
+}
+
+export async function getAllContractors(): Promise<ContractorSummary[]> {
   const q = query(collection(db, FIRESTORE_COLLECTIONS.users), where('role', '==', 'contractor'));
   return (await getDocs(q)).docs.map((d) => ({
-    id: d.id, displayName: d.data().displayName, email: d.data().email,
-    phone: d.data().phone ?? '', company: d.data().company ?? '',
+    id: d.id,
+    displayName: d.data().displayName,
+    email: d.data().email,
+    phone: d.data().phone ?? '',
+    company: d.data().company ?? '',
+    photoURL: d.data().photoURL ?? undefined,
   }));
 }
 

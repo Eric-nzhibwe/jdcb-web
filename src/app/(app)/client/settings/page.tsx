@@ -11,12 +11,10 @@ export default function ClientSettingsPage() {
   const { user, logout, updateProfile } = useAuth();
   const { isDark } = useTheme();
   const [notifyEmail, setNotifyEmail] = useState(user?.notifyEmail ?? true);
-  const [notifySms,   setNotifySms]   = useState(user?.notifySms ?? false);
 
-  const handleToggle = async (key: 'notifyEmail' | 'notifySms', value: boolean) => {
-    if (key === 'notifyEmail') setNotifyEmail(value);
-    else setNotifySms(value);
-    await updateProfile({ [key]: value });
+  const handleToggle = async (value: boolean) => {
+    setNotifyEmail(value);
+    await updateProfile({ notifyEmail: value });
   };
 
   return (
@@ -47,22 +45,17 @@ export default function ClientSettingsPage() {
       <Card>
         <h2 className="font-bold text-gray-900 dark:text-white mb-4">Notifications</h2>
         <div className="space-y-4">
-          {[
-            { key: 'notifyEmail' as const, label: 'Email Notifications', value: notifyEmail },
-            { key: 'notifySms'   as const, label: 'SMS Notifications',   value: notifySms },
-          ].map(({ key, label, value }) => (
-            <div key={key} className="flex items-center justify-between">
-              <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-              <button
-                onClick={() => handleToggle(key, !value)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`}
-                role="switch"
-                aria-checked={value}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-          ))}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Email Notifications</span>
+            <button
+              onClick={() => handleToggle(!notifyEmail)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notifyEmail ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`}
+              role="switch"
+              aria-checked={notifyEmail}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifyEmail ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
         </div>
       </Card>
 

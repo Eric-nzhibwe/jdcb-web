@@ -30,14 +30,18 @@ export default function ClientProjectDetailPage() {
   const [reports,   setReports]   = useState<ProgressReport[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [loading,   setLoading]   = useState(true);
-  const [contractorPhone, setContractorPhone] = useState<string | null>(null);
+  const [contractor, setContractor] = useState<{ phone?: string; photoURL?: string; company?: string } | null>(null);
 
   useEffect(() => {
     if (!id) return;
     const u1 = subscribeToProject(id, (p) => {
       setProject(p); setLoading(false);
       if (p?.contractorId) {
-        getUserById(p.contractorId).then((u) => setContractorPhone(u?.phone ?? null)).catch(() => {});
+        getUserById(p.contractorId).then((u) => setContractor({
+          phone: u?.phone ?? undefined,
+          photoURL: u?.photoURL ?? undefined,
+          company: u?.company ?? undefined,
+        })).catch(() => {});
       }
     });
     const u2 = subscribeToTasksByProject(id, setTasks);
@@ -72,17 +76,27 @@ export default function ClientProjectDetailPage() {
       </div>
 
       {/* Call contractor */}
-      {contractorPhone && (
+      {contractor?.phone && (
         <a
-          href={`tel:${contractorPhone}`}
+          href={`tel:${contractor.phone}`}
           className="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4 hover:bg-green-100 transition-colors"
         >
-          <div className="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center">
-            <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <div className="w-10 h-10 flex-shrink-0">
+            {contractor.photoURL ? (
+              <img
+                src={contractor.photoURL}
+                alt={project.contractorName}
+                className="w-10 h-10 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center">
+                <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+            )}
           </div>
           <div className="flex-1">
             <p className="font-semibold text-green-700 dark:text-green-400 text-sm">Call {project.contractorName}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{contractorPhone}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{contractor.phone}{contractor.company ? ` · ${contractor.company}` : ''}</p>
           </div>
         </a>
       )}
