@@ -29,6 +29,7 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(user.photoURL ?? null);
   const [photoState,   setPhotoState]   = useState<PhotoState>('idle');
   const [photoError,   setPhotoError]   = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const initials = getInitials(user.displayName);
@@ -54,23 +55,24 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
     setCurrentPhoto(localPreview);
     setPhotoState('uploading');
     setPhotoError('');
+    setUploadProgress(0);
 
     try {
-      // Upload to Firebase Storage with a 30s timeout
-      const uploadPromise = uploadProfilePhoto(user.id, file);
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Upload timed out. Please try again.')), 30_000)
-      );
-      const downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
+      // Upload with real progress — no timeout, let it complete naturally
+      const downloadURL = await uploadProfilePhoto(user.id, file, (pct) => {
+        setUploadProgress(pct);
+      });
 
       // Persist the URL to Firestore immediately
       await onSave({ photoURL: downloadURL });
       setCurrentPhoto(downloadURL);
+      setUploadProgress(100);
       setPhotoState('done');
-      setTimeout(() => setPhotoState('idle'), 2000);
+      setTimeout(() => { setPhotoState('idle'); setUploadProgress(0); }, 2000);
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : 'Photo upload failed. Try again.');
       setPhotoState('error');
+      setUploadProgress(0);
       // Revert preview back to last saved photo
       setCurrentPhoto(user.photoURL ?? null);
     }
@@ -125,9 +127,15 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
 
           {/* Upload-state overlay */}
           {photoState === 'uploading' && (
-            <div className="absolute inset-0 rounded-2xl bg-black/50 flex flex-col items-center justify-center gap-1">
-              <Loader2 className="w-6 h-6 text-white animate-spin" />
-              <span className="text-white text-[10px] font-semibold">Saving…</span>
+            <div className="absolute inset-0 rounded-2xl bg-black/60 flex flex-col items-center justify-center gap-1 px-2">
+              <Loader2 className="w-5 h-5 text-white animate-spin" />
+              <div className="w-full bg-white/30 rounded-full h-1.5 mt-1">
+                <div
+                  className="bg-white h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <span className="text-white text-[10px] font-semibold">{uploadProgress}%</span>
             </div>
           )}
           {photoState === 'done' && (
