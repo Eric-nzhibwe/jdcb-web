@@ -71,12 +71,20 @@ export function Sidebar() {
 
       {/* User pill */}
       <div className="mx-4 mt-4 flex items-center gap-3 bg-white/[0.08] rounded-2xl px-4 py-3">
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          <span className="text-sm font-black" style={{ color: 'var(--secondary)' }}>{initials}</span>
-        </div>
+        {user?.photoURL ? (
+          <img
+            src={user.photoURL}
+            alt={user.displayName}
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-white/20"
+          />
+        ) : (
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            <span className="text-sm font-black" style={{ color: 'var(--secondary)' }}>{initials}</span>
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white truncate">{user?.displayName}</p>
           <p className="text-xs text-white/50 capitalize">{user?.role}</p>

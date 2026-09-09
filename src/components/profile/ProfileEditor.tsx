@@ -58,12 +58,12 @@ export function ProfileEditor({ user, onSave }: ProfileEditorProps) {
     setUploadProgress(0);
 
     try {
-      // Upload with real progress — no timeout, let it complete naturally
+      // Compress + save to Firestore in one step (no Firebase Storage / CORS needed)
       const downloadURL = await uploadProfilePhoto(user.id, file, (pct) => {
         setUploadProgress(pct);
       });
 
-      // Persist the URL to Firestore immediately
+      // Update local auth state so the rest of the UI reflects the new photo
       await onSave({ photoURL: downloadURL });
       setCurrentPhoto(downloadURL);
       setUploadProgress(100);
