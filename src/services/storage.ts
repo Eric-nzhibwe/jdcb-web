@@ -1,22 +1,31 @@
-import {
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  type UploadTaskSnapshot,
-} from 'firebase/storage';
-import { storage } from '@/lib/firebase';
+/**
+ * Profile photo storage — Firestore base64 strategy
+ *
+ * Instead of uploading to Firebase Storage (which requires CORS configuration),
+ * we compress the image to a small JPEG, convert it to a base64 data URL, and
+ * store it directly in the user's Firestore document.
+ *
+ * Why this works:
+ *  - No CORS issues — we never make a cross-origin request to a storage bucket
+ *  - No extra SDK setup — uses Firestore which is already wired up
+ *  - Fast — a 400px JPEG compresses to ~20–40 KB, well within Firestore's 1 MB doc limit
+ *  - Works everywhere — local, Render, any deployment
+ */
+
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 /**
- * Compress an image file to a max width/height of 400 px and convert to JPEG.
- * Runs entirely in the browser — typical selfie goes from ~3 MB → ~30 KB.
+ * Compress an image to a max width/height of 400px and return a JPEG data URL.
  */
-function compressImage(file: File): Promise<Blob> {
-  return new Promise((resolve) => {
+function compressToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
 
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
+
       const MAX = 400;
       let { width, height } = img;
       if (width > height) {
@@ -24,106 +33,88 @@ function compressImage(file: File): Promise<Blob> {
       } else {
         if (height > MAX) { width = Math.round((width * MAX) / height); height = MAX; }
       }
+
       const canvas = document.createElement('canvas');
       canvas.width  = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(file); return; }
+      if (!ctx) { reject(new Error('Canvas not supported')); return; }
+
       ctx.drawImage(img, 0, 0, width, height);
+
       canvas.toBlob(
-        (blob) => resolve(blob ?? file),
+        (blob) => {
+          if (!blob) { reject(new Error('Compression failed')); return; }
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror   = () => reject(new Error('Failed to read compressed image'));
+          reader.readAsDataURL(blob);
+        },
         'image/jpeg',
         0.82,
       );
     };
 
-    // If compression fails for any reason, fall back to original file
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not load image'));
+    };
+
     img.src = objectUrl;
   });
 }
 
 /**
- * Compress and upload a profile photo using a resumable upload task.
+ * Compress and save a profile photo.
  *
- * Progress is reported in three phases:
- *   0–10 %   : before compression starts
- *  10–40 %   : compression (instant, but gives visual feedback)
- *  40–95 %   : real byte-level Firebase upload progress
- *  95–100 %  : fetching the final download URL
+ * Stores the compressed image as a base64 data URL in Firestore under
+ * users/{userId}.photoURL — no Firebase Storage or CORS required.
  *
- * Using uploadBytesResumable instead of uploadBytes gives us:
- *  • Real per-chunk progress events (no more stuck-at-40 %)
- *  • Automatic retry on transient network errors
- *  • Cancellable uploads
- *  • Clear error codes (storage/unauthorized, storage/canceled, etc.)
+ * onProgress: 0 → 30 (compressing) → 80 (saving to Firestore) → 100 (done)
  */
-export function uploadProfilePhoto(
+export async function uploadProfilePhoto(
   userId: string,
   file: File,
   onProgress?: (pct: number) => void,
 ): Promise<string> {
-  return new Promise(async (resolve, reject) => {
-    onProgress?.(10);
+  onProgress?.(10);
 
-    // ── Phase 1: compress ──────────────────────────────────────────────────
-    let compressed: Blob;
-    try {
-      compressed = await compressImage(file);
-    } catch {
-      // Compression failure is non-fatal — upload the original
-      compressed = file;
-    }
-    onProgress?.(40);
+  // Validate
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Image must be under 10 MB.');
+  }
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select an image file.');
+  }
 
-    // ── Phase 2: resumable upload ──────────────────────────────────────────
-    const filePath   = `profile_photos/${userId}/avatar.jpg`;
-    const storageRef = ref(storage, filePath);
-
-    const uploadTask = uploadBytesResumable(storageRef, compressed, {
-      contentType: 'image/jpeg',
-      cacheControl: 'public, max-age=31536000',
-    });
-
-    uploadTask.on(
-      'state_changed',
-
-      // Progress snapshot — maps bytes transferred to the 40–95 % band
-      (snapshot: UploadTaskSnapshot) => {
-        const { bytesTransferred, totalBytes } = snapshot;
-        if (totalBytes > 0) {
-          const uploadPct = bytesTransferred / totalBytes; // 0.0 → 1.0
-          const scaled    = Math.round(40 + uploadPct * 55); // 40 → 95
-          onProgress?.(Math.min(scaled, 95));
-        }
-      },
-
-      // Error handler — surfaces a readable message instead of a raw code
-      (error) => {
-        const messages: Record<string, string> = {
-          'storage/unauthorized':    'Permission denied. Please sign in again.',
-          'storage/canceled':        'Upload was cancelled.',
-          'storage/unknown':         'Network error. Check your connection and try again.',
-          'storage/quota-exceeded':  'Storage quota exceeded. Contact support.',
-          'storage/invalid-checksum':'File corrupted during transfer. Please try again.',
-        };
-        const msg = messages[error.code] ?? `Upload failed (${error.code}). Try again.`;
-        reject(new Error(msg));
-      },
-
-      // Completion handler
-      async () => {
-        try {
-          onProgress?.(95);
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          onProgress?.(100);
-          // Cache-buster so the browser always fetches the new photo
-          const sep = url.includes('?') ? '&' : '?';
-          resolve(`${url}${sep}t=${Date.now()}`);
-        } catch (err) {
-          reject(err);
-        }
-      },
+  // Compress to a small JPEG data URL
+  let dataURL: string;
+  try {
+    dataURL = await compressToDataURL(file);
+  } catch (err) {
+    throw new Error(
+      err instanceof Error ? err.message : 'Image compression failed. Try a different photo.'
     );
-  });
+  }
+  onProgress?.(60);
+
+  // Rough size check after compression (Firestore doc limit is 1 MB)
+  const approxBytes = Math.round((dataURL.length * 3) / 4);
+  if (approxBytes > 900 * 1024) {
+    throw new Error('Compressed image is still too large. Try a smaller photo.');
+  }
+
+  // Save directly to Firestore — no Storage bucket, no CORS
+  try {
+    await updateDoc(doc(db, 'users', userId), { photoURL: dataURL });
+  } catch (err: any) {
+    console.error('[Profile] Firestore write error:', err);
+    if (err?.code === 'permission-denied') {
+      throw new Error('Permission denied. Please sign in again.');
+    }
+    throw new Error('Failed to save photo. Check your connection and try again.');
+  }
+  onProgress?.(100);
+
+  return dataURL;
 }
